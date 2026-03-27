@@ -53,6 +53,7 @@ define( 'LAX_ABILITIES_URL', plugin_dir_url( __FILE__ ) );
 define( 'LAX_ABILITIES_CATEGORY', 'lax-abilities' );
 
 // Load includes.
+require_once LAX_ABILITIES_DIR . 'includes/settings.php';
 require_once LAX_ABILITIES_DIR . 'includes/helpers.php';
 require_once LAX_ABILITIES_DIR . 'includes/blocks.php';
 require_once LAX_ABILITIES_DIR . 'includes/post-types.php';

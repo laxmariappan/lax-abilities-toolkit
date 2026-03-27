@@ -9,6 +9,7 @@
  */
 
 import { useState, createRoot } from '@wordpress/element';
+import apiFetch from '@wordpress/api-fetch';
 import {
 	Card,
 	CardBody,
@@ -19,6 +20,7 @@ import {
 	Flex,
 	FlexItem,
 	TextControl,
+	ToggleControl,
 } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 
@@ -263,6 +265,105 @@ function ClientTab( { name, password } ) {
 }
 
 // =============================================================================
+// Ability group toggles
+// =============================================================================
+
+/**
+ * Card that lets administrators enable/disable individual ability groups.
+ */
+function AbilityGroupsCard() {
+	const initialGroups = ( data.groups || [] ).reduce( ( acc, g ) => {
+		acc[ g.key ] = g.enabled;
+		return acc;
+	}, {} );
+
+	const [ groups, setGroups ]     = useState( initialGroups );
+	const [ saving, setSaving ]     = useState( false );
+	const [ notice, setNotice ]     = useState( null ); // { status, message }
+
+	function toggleGroup( key ) {
+		setGroups( ( prev ) => ( { ...prev, [ key ]: ! prev[ key ] } ) );
+	}
+
+	function handleSave() {
+		setSaving( true );
+		setNotice( null );
+
+		apiFetch( {
+			url: data.settingsEndpoint,
+			method: 'POST',
+			headers: { 'X-WP-Nonce': data.nonce },
+			data: { groups },
+		} )
+			.then( () => {
+				setNotice( {
+					status: 'success',
+					message: __( 'Settings saved. Reload the page to see updated ability counts.', 'lax-abilities-toolkit' ),
+				} );
+			} )
+			.catch( ( err ) => {
+				setNotice( {
+					status: 'error',
+					message: err.message || __( 'Could not save settings. Please try again.', 'lax-abilities-toolkit' ),
+				} );
+			} )
+			.finally( () => setSaving( false ) );
+	}
+
+	if ( ! data.groups || data.groups.length === 0 ) {
+		return null;
+	}
+
+	return (
+		<Card className="lax-card">
+			<CardHeader>
+				<strong>{ __( 'Ability Groups', 'lax-abilities-toolkit' ) }</strong>
+			</CardHeader>
+			<CardBody>
+				<p className="lax-help-text">
+					{ __( 'Enable or disable groups of abilities. Disabled groups are not registered with the AI client. Changes take effect immediately after saving.', 'lax-abilities-toolkit' ) }
+				</p>
+
+				{ notice && (
+					<Notice
+						status={ notice.status }
+						isDismissible
+						onDismiss={ () => setNotice( null ) }
+					>
+						{ notice.message }
+					</Notice>
+				) }
+
+				<div className="lax-group-toggles">
+					{ ( data.groups || [] ).map( ( g ) => (
+						<ToggleControl
+							key={ g.key }
+							label={ g.label }
+							help={ g.description }
+							checked={ !! groups[ g.key ] }
+							onChange={ () => toggleGroup( g.key ) }
+							__nextHasNoMarginBottom
+						/>
+					) ) }
+				</div>
+
+				<div style={ { marginTop: '16px' } }>
+					<Button
+						variant="primary"
+						onClick={ handleSave }
+						isBusy={ saving }
+						disabled={ saving }
+						__next40pxDefaultSize
+					>
+						{ __( 'Save Settings', 'lax-abilities-toolkit' ) }
+					</Button>
+				</div>
+			</CardBody>
+		</Card>
+	);
+}
+
+// =============================================================================
 // Main admin component
 // =============================================================================
 
@@ -388,6 +489,9 @@ function LaxAbilitiesAdmin() {
 					</TabPanel>
 				</CardBody>
 			</Card>
+
+			{ /* ── Ability group toggles ───────────────────────────────── */ }
+			<AbilityGroupsCard />
 
 			{ /* ── Registered abilities ─────────────────────────────────*/ }
 			<Card className="lax-card">

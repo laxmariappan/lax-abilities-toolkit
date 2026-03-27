@@ -18,6 +18,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return void
  */
 function lax_abilities_register_site_abilities() {
+	if ( ! lax_abilities_is_group_enabled( 'site-info' ) ) {
+		return;
+	}
+
 	wp_register_ability(
 		'lax-abilities/site-info',
 		array(

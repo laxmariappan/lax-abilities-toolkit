@@ -97,6 +97,57 @@ function lax_abilities_admin_enqueue( $hook_suffix ) {
 		|| function_exists( 'mcp_adapter_init' )
 		|| ( function_exists( 'is_plugin_active' ) && is_plugin_active( 'mcp-adapter/mcp-adapter.php' ) );
 
+	// Build per-group toggle data for the settings UI.
+	$groups = array();
+
+	// Post types.
+	if ( function_exists( 'lax_abilities_all_post_types' ) ) {
+		foreach ( lax_abilities_all_post_types() as $slug => $config ) {
+			$groups[] = array(
+				'key'         => $slug,
+				'label'       => $config['label'],
+				'description' => sprintf(
+					/* translators: %s: post type label */
+					__( 'Abilities for the %s post type (create, list, get, update, delete).', 'lax-abilities-toolkit' ),
+					$config['label']
+				),
+				'enabled'     => lax_abilities_is_group_enabled( $slug ),
+			);
+		}
+	}
+
+	// Taxonomies.
+	if ( function_exists( 'lax_abilities_all_taxonomies' ) ) {
+		foreach ( lax_abilities_all_taxonomies() as $slug => $config ) {
+			$groups[] = array(
+				'key'         => $slug,
+				'label'       => $config['label'],
+				'description' => sprintf(
+					/* translators: %s: taxonomy plural label */
+					__( 'Abilities for %s (create, list, delete).', 'lax-abilities-toolkit' ),
+					$config['plural']
+				),
+				'enabled'     => lax_abilities_is_group_enabled( $slug ),
+			);
+		}
+	}
+
+	// Media.
+	$groups[] = array(
+		'key'         => 'media',
+		'label'       => __( 'Media Library', 'lax-abilities-toolkit' ),
+		'description' => __( 'List, get, and delete media library items.', 'lax-abilities-toolkit' ),
+		'enabled'     => lax_abilities_is_group_enabled( 'media' ),
+	);
+
+	// Site info.
+	$groups[] = array(
+		'key'         => 'site-info',
+		'label'       => __( 'Site Info', 'lax-abilities-toolkit' ),
+		'description' => __( 'Retrieve site name, URL, tagline, WordPress version, timezone, and language.', 'lax-abilities-toolkit' ),
+		'enabled'     => lax_abilities_is_group_enabled( 'site-info' ),
+	);
+
 	wp_localize_script(
 		'lax-abilities-admin',
 		'laxAbilitiesAdmin',
@@ -112,6 +163,9 @@ function lax_abilities_admin_enqueue( $hook_suffix ) {
 				? lax_abilities_is_block_editor_active()
 				: false,
 			'abilities'         => $abilities,
+			'groups'            => $groups,
+			'settingsEndpoint'  => rest_url( 'lax-abilities/v1/settings' ),
+			'nonce'             => wp_create_nonce( 'wp_rest' ),
 			'appPasswordUrl'    => admin_url( 'profile.php#application-passwords-section' ),
 			'version'           => LAX_ABILITIES_VERSION,
 		)

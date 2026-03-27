@@ -152,6 +152,19 @@
 	font-weight: 600;
 }
 
+/* ── Ability group toggles ─────────────────────────────────────── */
+
+.lax-group-toggles .components-toggle-control {
+	border-bottom: 1px solid #f0f0f0;
+	padding-bottom: 12px;
+	margin-bottom: 12px;
+}
+
+.lax-group-toggles .components-toggle-control:last-child {
+	border-bottom: none;
+	margin-bottom: 0;
+}
+
 /* ── Footer ────────────────────────────────────────────────────── */
 
 .lax-footer {

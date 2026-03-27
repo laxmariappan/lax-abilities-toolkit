@@ -27,6 +27,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return void
  */
 function lax_abilities_register_media_abilities() {
+	if ( ! lax_abilities_is_group_enabled( 'media' ) ) {
+		return;
+	}
+
 	$cat = LAX_ABILITIES_CATEGORY;
 
 	// ── list ─────────────────────────────────────────────────────────────────

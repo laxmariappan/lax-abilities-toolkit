@@ -36,13 +36,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 // =============================================================================
 
 /**
- * Returns the taxonomy configurations to register abilities for.
+ * Returns ALL configured taxonomy entries after applying developer filters.
  *
- * @since 1.0.0
+ * Used by the admin UI and settings page. Only public taxonomies
+ * (publicly_queryable or show_ui) are included to avoid surfacing
+ * internal taxonomies to AI clients.
+ *
+ * @since 1.3.0
  *
  * @return array<string, array> Keyed by WP taxonomy slug.
  */
-function lax_abilities_get_taxonomies() {
+function lax_abilities_all_taxonomies() {
 	$defaults = array(
 		'category' => array(
 			'label'        => __( 'Category', 'lax-abilities-toolkit' ),
@@ -58,25 +62,38 @@ function lax_abilities_get_taxonomies() {
 		),
 	);
 
-	/**
-	 * Filters the taxonomies that get create / list / delete Abilities registered.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param array $taxonomies {
-	 *     Taxonomy configuration map, keyed by WP taxonomy slug.
-	 *
-	 *     @type string $label        Singular human-readable label.
-	 *     @type string $plural       Plural human-readable label.
-	 *     @type bool   $hierarchical Whether the taxonomy supports parent terms.
-	 *     @type string $ability_slug Override for the ability slug segment.
-	 *                                Defaults to the sanitised taxonomy key.
-	 *                                Resulting names: lax-abilities/create-{ability_slug}
-	 *                                                 lax-abilities/list-{plural_slug}
-	 *                                                 lax-abilities/delete-{ability_slug}
-	 * }
-	 */
-	return apply_filters( 'lax_abilities_registered_taxonomies', $defaults );
+	$taxonomies = apply_filters( 'lax_abilities_registered_taxonomies', $defaults );
+
+	// Remove internal taxonomies that are not shown in the UI.
+	return array_filter(
+		$taxonomies,
+		function ( $config, $slug ) {
+			$tax_obj = get_taxonomy( $slug );
+			if ( ! $tax_obj ) {
+				return true; // Not registered yet; allow through.
+			}
+			return (bool) ( $tax_obj->publicly_queryable || $tax_obj->show_ui );
+		},
+		ARRAY_FILTER_USE_BOTH
+	);
+}
+
+/**
+ * Returns the taxonomy configurations to register abilities for,
+ * filtered to only enabled groups (see Settings → Lax Abilities).
+ *
+ * @since 1.0.0
+ *
+ * @return array<string, array> Keyed by WP taxonomy slug.
+ */
+function lax_abilities_get_taxonomies() {
+	return array_filter(
+		lax_abilities_all_taxonomies(),
+		function ( $config, $slug ) {
+			return lax_abilities_is_group_enabled( $slug );
+		},
+		ARRAY_FILTER_USE_BOTH
+	);
 }
 
 /**

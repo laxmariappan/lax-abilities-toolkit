@@ -63,15 +63,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 // =============================================================================
 
 /**
- * Returns the post type configurations to register abilities for.
+ * Returns ALL configured post type entries after applying developer filters.
  *
- * Developers add post types via the `lax_abilities_registered_post_types` filter.
+ * This is the unfiltered source used by the admin UI and settings page.
+ * It excludes WordPress-internal post types (those with `public => false`)
+ * so that types like nav_menu_item, wp_block, wp_template, etc. are never
+ * surfaced to AI clients regardless of filter usage.
  *
- * @since 1.0.0
+ * @since 1.3.0
  *
  * @return array<string, array> Keyed by WP post type slug.
  */
-function lax_abilities_get_post_types() {
+function lax_abilities_all_post_types() {
 	$defaults = array(
 		'post' => array(
 			'label'             => __( 'Post', 'lax-abilities-toolkit' ),
@@ -118,7 +121,43 @@ function lax_abilities_get_post_types() {
 	 *                                       delete_own, delete_others, read_private.
 	 * }
 	 */
-	return apply_filters( 'lax_abilities_registered_post_types', $defaults );
+	$types = apply_filters( 'lax_abilities_registered_post_types', $defaults );
+
+	// Remove WP-internal post types (public => false). This guards against
+	// accidental exposure of nav_menu_item, wp_block, wp_template, etc.
+	return array_filter(
+		$types,
+		function ( $config, $slug ) {
+			$pt_obj = get_post_type_object( $slug );
+			// If the post type isn't registered yet, allow it through — the
+			// developer takes responsibility for registering it before abilities fire.
+			if ( ! $pt_obj ) {
+				return true;
+			}
+			return (bool) $pt_obj->public;
+		},
+		ARRAY_FILTER_USE_BOTH
+	);
+}
+
+/**
+ * Returns the post type configurations to register abilities for,
+ * filtered to only enabled groups (see Settings → Lax Abilities).
+ *
+ * Developers add post types via the `lax_abilities_registered_post_types` filter.
+ *
+ * @since 1.0.0
+ *
+ * @return array<string, array> Keyed by WP post type slug.
+ */
+function lax_abilities_get_post_types() {
+	return array_filter(
+		lax_abilities_all_post_types(),
+		function ( $config, $slug ) {
+			return lax_abilities_is_group_enabled( $slug );
+		},
+		ARRAY_FILTER_USE_BOTH
+	);
 }
 
 /**
