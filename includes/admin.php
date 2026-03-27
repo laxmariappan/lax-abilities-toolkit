@@ -1,11 +1,11 @@
 <?php
 /**
- * Admin settings page: MCP connection info and configuration snippets.
+ * Admin settings page: getting-started guide and MCP connection info.
  *
- * Provides a single-page admin UI that shows the MCP server endpoint,
- * guides users through creating an Application Password, and generates
- * ready-to-paste configuration snippets for Claude Desktop, Cursor,
- * VS Code, and any other MCP-compatible client.
+ * Provides a complete walkthrough for connecting any MCP-compatible AI client
+ * (Claude Desktop, Cursor, VS Code, etc.) to this WordPress site. Designed to
+ * be beginner-friendly: shows the exact config file path per client and OS,
+ * explains prerequisites, and generates a ready-to-paste configuration snippet.
  *
  * @package LaxAbilitiesToolkit
  * @since   1.1.0
@@ -34,32 +34,74 @@ function lax_abilities_admin_menu() {
 add_action( 'admin_menu', 'lax_abilities_admin_menu' );
 
 /**
- * Enqueues admin page styles.
+ * Enqueues admin-page styles and scripts (only on our page).
  *
  * @since 1.1.0
  *
- * @param string $hook_suffix The current admin page hook suffix.
+ * @param string $hook_suffix Current admin page hook suffix.
  * @return void
  */
 function lax_abilities_admin_styles( $hook_suffix ) {
 	if ( 'settings_page_lax-abilities-toolkit' !== $hook_suffix ) {
 		return;
 	}
-	// Inline styles — no external file needed for this small page.
+
 	wp_add_inline_style(
 		'wp-admin',
 		'
-		.lax-abilities-wrap { max-width: 860px; }
-		.lax-abilities-wrap h2 { margin-top: 2em; }
-		.lax-abilities-wrap .lax-card {
+		/* ── Layout ─────────────────────────────────────────────── */
+		.lax-wrap { max-width: 900px; }
+		.lax-wrap h2 { margin-top: 2em; border-bottom: 1px solid #dcdcde; padding-bottom: .4em; }
+		.lax-tagline { font-size: 14px; color: #50575e; margin-top: 0; }
+
+		/* ── Cards ──────────────────────────────────────────────── */
+		.lax-card {
 			background: #fff;
 			border: 1px solid #c3c4c7;
 			border-radius: 4px;
-			padding: 16px 20px;
-			margin: 12px 0 20px;
+			padding: 18px 22px;
+			margin: 10px 0 22px;
 		}
-		.lax-abilities-wrap .lax-card h3 { margin-top: 0; }
-		.lax-abilities-wrap pre {
+		.lax-card h3 { margin-top: 0; font-size: 15px; }
+		.lax-card p:last-child { margin-bottom: 0; }
+
+		/* ── Quick-start steps ──────────────────────────────────── */
+		.lax-steps { counter-reset: lax-step; list-style: none; margin: 0; padding: 0; }
+		.lax-steps li {
+			counter-increment: lax-step;
+			display: flex;
+			align-items: flex-start;
+			gap: 14px;
+			padding: 12px 0;
+			border-bottom: 1px solid #f0f0f1;
+		}
+		.lax-steps li:last-child { border-bottom: 0; }
+		.lax-step-num {
+			min-width: 32px; height: 32px; border-radius: 50%;
+			background: #2271b1; color: #fff;
+			display: flex; align-items: center; justify-content: center;
+			font-weight: 700; font-size: 14px; flex-shrink: 0;
+		}
+		.lax-steps li.done .lax-step-num { background: #00a32a; }
+		.lax-step-body { flex: 1; }
+		.lax-step-body strong { display: block; margin-bottom: 3px; }
+		.lax-step-body p { margin: 2px 0 0; color: #50575e; font-size: 13px; }
+
+		/* ── Status table ────────────────────────────────────────── */
+		.lax-status-ok  { color: #00a32a; font-weight: 600; }
+		.lax-status-err { color: #d63638; font-weight: 600; }
+
+		/* ── Code / endpoint ─────────────────────────────────────── */
+		.lax-endpoint {
+			font-family: monospace;
+			background: #f0f0f1;
+			padding: 8px 12px;
+			border-radius: 3px;
+			display: inline-block;
+			word-break: break-all;
+			font-size: 13px;
+		}
+		.lax-wrap pre {
 			background: #1e1e2e;
 			color: #cdd6f4;
 			padding: 14px 16px;
@@ -67,27 +109,37 @@ function lax_abilities_admin_styles( $hook_suffix ) {
 			overflow-x: auto;
 			font-size: 12px;
 			line-height: 1.6;
-			white-space: pre-wrap;
-			word-break: break-all;
+			white-space: pre;
+			word-break: normal;
+			margin: 8px 0 4px;
 		}
-		.lax-abilities-wrap .lax-endpoint {
-			font-family: monospace;
-			background: #f0f0f1;
-			padding: 8px 12px;
-			border-radius: 3px;
-			display: inline-block;
-			word-break: break-all;
+
+		/* ── Tabs ────────────────────────────────────────────────── */
+		.lax-wrap .nav-tab-wrapper { margin-bottom: 0; }
+		.lax-wrap .tab-panel { display: none; padding: 18px 22px; background: #fff; border: 1px solid #c3c4c7; border-top: 0; border-radius: 0 0 4px 4px; }
+		.lax-wrap .tab-panel.active { display: block; }
+
+		/* ── Copy button ─────────────────────────────────────────── */
+		.lax-copy-btn { cursor: pointer; margin-left: 8px; vertical-align: middle; }
+
+		/* ── Client guide ────────────────────────────────────────── */
+		.lax-client-steps { margin: 10px 0 14px; padding-left: 20px; }
+		.lax-client-steps li { margin-bottom: 6px; font-size: 13px; }
+		.lax-paths { margin: 4px 0 10px 0; padding: 0; list-style: none; }
+		.lax-paths li { display: flex; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+		.lax-paths .os { min-width: 66px; color: #50575e; }
+		.lax-paths code { background: #f0f0f1; padding: 1px 5px; border-radius: 2px; word-break: break-all; }
+
+		/* ── Notice/tip box ─────────────────────────────────────── */
+		.lax-tip {
+			background: #f0f6fc;
+			border-left: 4px solid #2271b1;
+			padding: 10px 14px;
+			margin: 10px 0;
+			font-size: 13px;
+			border-radius: 0 3px 3px 0;
 		}
-		.lax-abilities-wrap .lax-status-ok  { color: #00a32a; font-weight: 600; }
-		.lax-abilities-wrap .lax-status-err { color: #d63638; font-weight: 600; }
-		.lax-abilities-wrap .nav-tab-wrapper { margin-bottom: 0; }
-		.lax-abilities-wrap .tab-content { display: none; padding-top: 4px; }
-		.lax-abilities-wrap .tab-content.active { display: block; }
-		.lax-abilities-copy-btn {
-			cursor: pointer;
-			margin-left: 8px;
-			vertical-align: middle;
-		}
+		.lax-tip.warn { background: #fcf9e8; border-color: #dba617; }
 		'
 	);
 
@@ -95,30 +147,43 @@ function lax_abilities_admin_styles( $hook_suffix ) {
 		'jquery',
 		'
 		jQuery( function( $ ) {
-			// Tab switching.
-			$( ".lax-abilities-wrap" ).on( "click", ".nav-tab", function( e ) {
+
+			// ── Tab switching ──────────────────────────────────────
+			$( ".lax-wrap" ).on( "click", ".nav-tab", function( e ) {
 				e.preventDefault();
 				var target = $( this ).data( "tab" );
-				$( ".nav-tab" ).removeClass( "nav-tab-active" );
+				$( this ).closest( ".lax-wrap" ).find( ".nav-tab" )
+					.removeClass( "nav-tab-active" );
 				$( this ).addClass( "nav-tab-active" );
-				$( ".tab-content" ).removeClass( "active" );
+				$( ".tab-panel" ).removeClass( "active" );
 				$( "#tab-" + target ).addClass( "active" );
 			} );
-			// Copy-to-clipboard.
-			$( ".lax-abilities-wrap" ).on( "click", ".lax-abilities-copy-btn", function() {
-				var text = $( this ).siblings( "pre" ).text();
+
+			// ── Copy to clipboard ──────────────────────────────────
+			$( ".lax-wrap" ).on( "click", ".lax-copy-btn", function() {
+				var $btn  = $( this );
+				var text  = $btn.closest( ".lax-copy-group" ).find( "pre" ).text();
+				var label = $btn.text();
 				navigator.clipboard.writeText( text ).then( function() {
-					alert( "Copied to clipboard!" );
+					$btn.text( "Copied ✓" );
+					setTimeout( function() { $btn.text( label ); }, 2000 );
+				} ).catch( function() {
+					alert( "Could not copy — please select and copy manually." );
 				} );
 			} );
+
 		} );
 		'
 	);
 }
 add_action( 'admin_enqueue_scripts', 'lax_abilities_admin_styles' );
 
+// =============================================================================
+// Settings page renderer
+// =============================================================================
+
 /**
- * Renders the settings / connection info page.
+ * Renders the full settings / getting-started page.
  *
  * @since 1.1.0
  *
@@ -129,25 +194,103 @@ function lax_abilities_settings_page() {
 		return;
 	}
 
-	$mcp_adapter_active = class_exists( 'MCP_Adapter\\Plugin' ) || function_exists( 'mcp_adapter_init' )
+	/* ── Status checks ─────────────────────────────────────────────────── */
+	$abilities_api_active = function_exists( 'wp_register_ability' );
+	$mcp_adapter_active   = class_exists( 'MCP_Adapter\\Plugin' )
+		|| function_exists( 'mcp_adapter_init' )
 		|| ( function_exists( 'is_plugin_active' ) && is_plugin_active( 'mcp-adapter/mcp-adapter.php' ) );
 
-	$abilities_api_active = function_exists( 'wp_register_ability' );
-	$site_url             = trailingslashit( home_url() );
-	$mcp_endpoint         = $site_url . 'wp-json/mcp/mcp-adapter-default-server';
-	$app_passwords_url    = admin_url( 'profile.php#application-passwords-section' );
-	$username             = wp_get_current_user()->user_login;
+	$site_url          = trailingslashit( home_url() );
+	$mcp_endpoint      = $site_url . 'wp-json/mcp/mcp-adapter-default-server';
+	$app_passwords_url = admin_url( 'profile.php#application-passwords-section' );
+	$username          = wp_get_current_user()->user_login;
+	$plugin_install    = admin_url( 'plugin-install.php?s=mcp-adapter&tab=search&type=term' );
 
-	$claude_config  = lax_abilities_get_client_config( $mcp_endpoint, $username, 'claude' );
-	$cursor_config  = lax_abilities_get_client_config( $mcp_endpoint, $username, 'cursor' );
-	$vscode_config  = lax_abilities_get_client_config( $mcp_endpoint, $username, 'vscode' );
-	$generic_config = lax_abilities_get_client_config( $mcp_endpoint, $username, 'generic' );
+	/* ── Config snippets ───────────────────────────────────────────────── */
+	$snippet_claude  = lax_abilities_get_client_config( $mcp_endpoint, $username, 'claude' );
+	$snippet_cursor  = lax_abilities_get_client_config( $mcp_endpoint, $username, 'cursor' );
+	$snippet_vscode  = lax_abilities_get_client_config( $mcp_endpoint, $username, 'vscode' );
+	$snippet_generic = lax_abilities_get_client_config( $mcp_endpoint, $username, 'generic' );
+
 	?>
-	<div class="wrap lax-abilities-wrap">
-		<h1><?php esc_html_e( 'Lax Abilities Toolkit', 'lax-abilities-toolkit' ); ?></h1>
-		<p><?php esc_html_e( 'Connect any MCP-compatible AI client (Claude, Cursor, VS Code, etc.) to this WordPress site.', 'lax-abilities-toolkit' ); ?></p>
+	<div class="wrap lax-wrap">
 
-		<!-- Status -->
+		<h1><?php esc_html_e( 'Lax Abilities Toolkit', 'lax-abilities-toolkit' ); ?></h1>
+		<p class="lax-tagline">
+			<?php esc_html_e( 'Give any MCP-compatible AI — Claude, Cursor, VS Code and more — direct access to this WordPress site.', 'lax-abilities-toolkit' ); ?>
+		</p>
+
+		<?php /* ── Quick Start ──────────────────────────────────────────────── */ ?>
+		<h2><?php esc_html_e( 'Quick Start', 'lax-abilities-toolkit' ); ?></h2>
+		<div class="lax-card">
+			<ol class="lax-steps">
+
+				<li class="<?php echo $abilities_api_active ? 'done' : ''; ?>">
+					<span class="lax-step-num">1</span>
+					<div class="lax-step-body">
+						<strong><?php esc_html_e( 'WordPress 6.9 or later', 'lax-abilities-toolkit' ); ?></strong>
+						<?php if ( $abilities_api_active ) : ?>
+							<p class="lax-status-ok">&#10003; <?php esc_html_e( 'Your site meets the requirement.', 'lax-abilities-toolkit' ); ?></p>
+						<?php else : ?>
+							<p class="lax-status-err">&#10007;
+								<?php esc_html_e( 'The Abilities API is not available. Please update WordPress to 6.9 or later.', 'lax-abilities-toolkit' ); ?>
+							</p>
+						<?php endif; ?>
+					</div>
+				</li>
+
+				<li class="<?php echo $mcp_adapter_active ? 'done' : ''; ?>">
+					<span class="lax-step-num">2</span>
+					<div class="lax-step-body">
+						<strong><?php esc_html_e( 'Install and activate the MCP Adapter plugin', 'lax-abilities-toolkit' ); ?></strong>
+						<?php if ( $mcp_adapter_active ) : ?>
+							<p class="lax-status-ok">&#10003; <?php esc_html_e( 'MCP Adapter is active.', 'lax-abilities-toolkit' ); ?></p>
+						<?php else : ?>
+							<p>
+								<?php
+								printf(
+									/* translators: 1: link to plugin search, 2: link to GitHub */
+									esc_html__( 'This free plugin exposes your abilities over HTTP so AI clients can reach them. %1$s or install it %2$s.', 'lax-abilities-toolkit' ),
+									'<a href="' . esc_url( $plugin_install ) . '">' . esc_html__( 'Search the plugin directory', 'lax-abilities-toolkit' ) . '</a>',
+									'<a href="https://github.com/WordPress/mcp-adapter" target="_blank" rel="noopener noreferrer">' . esc_html__( 'from GitHub', 'lax-abilities-toolkit' ) . '</a>'
+								);
+								?>
+							</p>
+						<?php endif; ?>
+					</div>
+				</li>
+
+				<li>
+					<span class="lax-step-num">3</span>
+					<div class="lax-step-body">
+						<strong><?php esc_html_e( 'Create an Application Password', 'lax-abilities-toolkit' ); ?></strong>
+						<p>
+							<?php
+							printf(
+								/* translators: %s: link to Application Passwords section */
+								esc_html__( 'Go to %s, scroll to "Application Passwords", type a name (e.g. "Claude Desktop"), and click Add. Copy the password — it is shown only once.', 'lax-abilities-toolkit' ),
+								'<a href="' . esc_url( $app_passwords_url ) . '">' . esc_html__( 'your Profile page', 'lax-abilities-toolkit' ) . '</a>'
+							);
+							?>
+						</p>
+						<a href="<?php echo esc_url( $app_passwords_url ); ?>" class="button button-secondary" style="margin-top:6px">
+							<?php esc_html_e( 'Open Profile → Application Passwords', 'lax-abilities-toolkit' ); ?>
+						</a>
+					</div>
+				</li>
+
+				<li>
+					<span class="lax-step-num">4</span>
+					<div class="lax-step-body">
+						<strong><?php esc_html_e( 'Add the config snippet to your AI client', 'lax-abilities-toolkit' ); ?></strong>
+						<p><?php esc_html_e( 'Choose your client in the "Connect Your AI Client" section below, follow the steps, then restart the app.', 'lax-abilities-toolkit' ); ?></p>
+					</div>
+				</li>
+
+			</ol>
+		</div>
+
+		<?php /* ── Status ──────────────────────────────────────────────────── */ ?>
 		<h2><?php esc_html_e( 'Status', 'lax-abilities-toolkit' ); ?></h2>
 		<div class="lax-card">
 			<table class="widefat striped" style="border:0">
@@ -156,7 +299,7 @@ function lax_abilities_settings_page() {
 						<td><?php esc_html_e( 'Abilities API', 'lax-abilities-toolkit' ); ?></td>
 						<td>
 							<?php if ( $abilities_api_active ) : ?>
-								<span class="lax-status-ok">&#10003; <?php esc_html_e( 'Active', 'lax-abilities-toolkit' ); ?></span>
+								<span class="lax-status-ok">&#10003; <?php esc_html_e( 'Active (WordPress 6.9+)', 'lax-abilities-toolkit' ); ?></span>
 							<?php else : ?>
 								<span class="lax-status-err">&#10007; <?php esc_html_e( 'Not available — requires WordPress 6.9+', 'lax-abilities-toolkit' ); ?></span>
 							<?php endif; ?>
@@ -173,13 +316,29 @@ function lax_abilities_settings_page() {
 									<?php
 									printf(
 										/* translators: %s: link to GitHub repo */
-										esc_html__( 'Not active — install the %s plugin to expose these abilities over MCP.', 'lax-abilities-toolkit' ),
+										esc_html__( 'Not active — install the %s plugin.', 'lax-abilities-toolkit' ),
 										'<a href="https://github.com/WordPress/mcp-adapter" target="_blank" rel="noopener noreferrer">MCP Adapter</a>'
 									);
 									?>
 								</span>
 							<?php endif; ?>
 						</td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Block editor support', 'lax-abilities-toolkit' ); ?></td>
+						<td>
+							<?php if ( lax_abilities_is_block_editor_active() ) : ?>
+								<span class="lax-status-ok">&#10003; <?php esc_html_e( 'Active — content will be auto-converted to Gutenberg blocks', 'lax-abilities-toolkit' ); ?></span>
+							<?php else : ?>
+								<span style="color:#666">
+									<?php esc_html_e( 'Classic editor detected — content stored as HTML', 'lax-abilities-toolkit' ); ?>
+								</span>
+							<?php endif; ?>
+						</td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'MCP server endpoint', 'lax-abilities-toolkit' ); ?></td>
+						<td><code class="lax-endpoint"><?php echo esc_url( $mcp_endpoint ); ?></code></td>
 					</tr>
 					<tr>
 						<td><?php esc_html_e( 'Plugin version', 'lax-abilities-toolkit' ); ?></td>
@@ -189,38 +348,28 @@ function lax_abilities_settings_page() {
 			</table>
 		</div>
 
-		<!-- MCP Endpoint -->
-		<h2><?php esc_html_e( 'MCP Server Endpoint', 'lax-abilities-toolkit' ); ?></h2>
-		<div class="lax-card">
-			<p><?php esc_html_e( 'Use this URL when configuring your MCP client:', 'lax-abilities-toolkit' ); ?></p>
-			<p><code class="lax-endpoint"><?php echo esc_url( $mcp_endpoint ); ?></code></p>
-			<p>
-				<?php
-				printf(
-					/* translators: %s: link to Application Passwords section */
-					esc_html__( 'Authentication uses %s — never your regular login password.', 'lax-abilities-toolkit' ),
-					'<a href="' . esc_url( $app_passwords_url ) . '">' . esc_html__( 'Application Passwords', 'lax-abilities-toolkit' ) . '</a>'
-				);
-				?>
-			</p>
-			<ol>
-				<li><?php esc_html_e( 'Go to your profile page and scroll to "Application Passwords".', 'lax-abilities-toolkit' ); ?></li>
-				<li><?php esc_html_e( 'Enter a name (e.g. "Claude Desktop") and click Add New Application Password.', 'lax-abilities-toolkit' ); ?></li>
-				<li><?php esc_html_e( 'Copy the generated password — it is shown only once.', 'lax-abilities-toolkit' ); ?></li>
-				<li><?php esc_html_e( 'Paste it into your client configuration below.', 'lax-abilities-toolkit' ); ?></li>
-			</ol>
-			<a href="<?php echo esc_url( $app_passwords_url ); ?>" class="button button-primary">
-				<?php esc_html_e( 'Create Application Password', 'lax-abilities-toolkit' ); ?>
-			</a>
+		<?php /* ── Node.js prerequisite notice ─────────────────────────────── */ ?>
+		<div class="lax-tip warn">
+			<strong><?php esc_html_e( 'Before you start: Node.js is required', 'lax-abilities-toolkit' ); ?></strong>
+			&nbsp;—&nbsp;
+			<?php
+			printf(
+				/* translators: %s: link to nodejs.org */
+				esc_html__( 'All clients below use %s to run the MCP bridge. If you have not installed it yet, download the LTS version from %s (it also installs npx).', 'lax-abilities-toolkit' ),
+				'<code>npx</code>',
+				'<a href="https://nodejs.org" target="_blank" rel="noopener noreferrer">nodejs.org</a>'
+			);
+			?>
 		</div>
 
-		<!-- Client Config Snippets -->
-		<h2><?php esc_html_e( 'Client Configuration', 'lax-abilities-toolkit' ); ?></h2>
-		<p>
+		<?php /* ── Client guides ─────────────────────────────────────────────── */ ?>
+		<h2><?php esc_html_e( 'Connect Your AI Client', 'lax-abilities-toolkit' ); ?></h2>
+		<p style="color:#50575e;font-size:13px">
 			<?php
-			esc_html_e(
-				'Replace YOUR_APP_PASSWORD with the Application Password you created above. The username shown is your current WordPress username.',
-				'lax-abilities-toolkit'
+			printf(
+				/* translators: %s: placeholder text */
+				esc_html__( 'In the snippet for your chosen client, replace %s with the Application Password you created in Step 3.', 'lax-abilities-toolkit' ),
+				'<code>YOUR_APP_PASSWORD</code>'
 			);
 			?>
 		</p>
@@ -229,82 +378,187 @@ function lax_abilities_settings_page() {
 			<a href="#" class="nav-tab nav-tab-active" data-tab="claude"><?php esc_html_e( 'Claude Desktop', 'lax-abilities-toolkit' ); ?></a>
 			<a href="#" class="nav-tab" data-tab="cursor"><?php esc_html_e( 'Cursor', 'lax-abilities-toolkit' ); ?></a>
 			<a href="#" class="nav-tab" data-tab="vscode"><?php esc_html_e( 'VS Code', 'lax-abilities-toolkit' ); ?></a>
-			<a href="#" class="nav-tab" data-tab="generic"><?php esc_html_e( 'Generic / Other', 'lax-abilities-toolkit' ); ?></a>
+			<a href="#" class="nav-tab" data-tab="generic"><?php esc_html_e( 'Other / Generic', 'lax-abilities-toolkit' ); ?></a>
 		</div>
 
-		<div class="lax-card">
-			<!-- Claude Desktop -->
-			<div id="tab-claude" class="tab-content active">
-				<h3><?php esc_html_e( 'Claude Desktop', 'lax-abilities-toolkit' ); ?></h3>
-				<p>
+		<!-- ── Claude Desktop ─────────────────────────────────────────────── -->
+		<div id="tab-claude" class="tab-panel active">
+			<h3><?php esc_html_e( 'Claude Desktop', 'lax-abilities-toolkit' ); ?></h3>
+
+			<p>
+				<?php
+				printf(
+					/* translators: %s: download link */
+					esc_html__( 'Download Claude Desktop from %s if you have not already.', 'lax-abilities-toolkit' ),
+					'<a href="https://claude.ai/download" target="_blank" rel="noopener noreferrer">claude.ai/download</a>'
+				);
+				?>
+			</p>
+
+			<strong><?php esc_html_e( 'Where is the config file?', 'lax-abilities-toolkit' ); ?></strong>
+			<ul class="lax-paths">
+				<li><span class="os">macOS</span>    <code>~/Library/Application Support/Claude/claude_desktop_config.json</code></li>
+				<li><span class="os">Windows</span>  <code>%APPDATA%\Claude\claude_desktop_config.json</code></li>
+				<li><span class="os">Linux</span>    <code>~/.config/Claude/claude_desktop_config.json</code></li>
+			</ul>
+
+			<strong><?php esc_html_e( 'Steps:', 'lax-abilities-toolkit' ); ?></strong>
+			<ol class="lax-client-steps">
+				<li><?php esc_html_e( 'Open (or create) the config file at the path above in any text editor.', 'lax-abilities-toolkit' ); ?></li>
+				<li>
 					<?php
 					printf(
-						/* translators: %s: path to config file */
-						esc_html__( 'Add the following to your %s file:', 'lax-abilities-toolkit' ),
-						'<code>claude_desktop_config.json</code>'
+						/* translators: %s: key name */
+						esc_html__( 'If the file already exists, find the %s object and add the new server entry inside it. Otherwise paste the full snippet below.', 'lax-abilities-toolkit' ),
+						'<code>"mcpServers"</code>'
 					);
 					?>
-					&nbsp;
-					<a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener noreferrer">
-						<?php esc_html_e( '(Where is this file?)', 'lax-abilities-toolkit' ); ?>
-					</a>
-				</p>
-				<button class="button lax-abilities-copy-btn"><?php esc_html_e( 'Copy', 'lax-abilities-toolkit' ); ?></button>
-				<pre><?php echo esc_html( $claude_config ); ?></pre>
-			</div>
+				</li>
+				<li><?php esc_html_e( 'Replace YOUR_APP_PASSWORD with your Application Password.', 'lax-abilities-toolkit' ); ?></li>
+				<li><?php esc_html_e( 'Save the file.', 'lax-abilities-toolkit' ); ?></li>
+				<li><?php esc_html_e( 'Completely quit and reopen Claude Desktop (Cmd/Ctrl + Q, then reopen).', 'lax-abilities-toolkit' ); ?></li>
+				<li><?php esc_html_e( 'The WordPress tools will now appear in the chat toolbar.', 'lax-abilities-toolkit' ); ?></li>
+			</ol>
 
-			<!-- Cursor -->
-			<div id="tab-cursor" class="tab-content">
-				<h3><?php esc_html_e( 'Cursor', 'lax-abilities-toolkit' ); ?></h3>
-				<p>
+			<div class="lax-copy-group">
+				<button class="button lax-copy-btn"><?php esc_html_e( 'Copy', 'lax-abilities-toolkit' ); ?></button>
+				<pre><?php echo esc_html( $snippet_claude ); ?></pre>
+			</div>
+		</div>
+
+		<!-- ── Cursor ──────────────────────────────────────────────────────── -->
+		<div id="tab-cursor" class="tab-panel">
+			<h3><?php esc_html_e( 'Cursor', 'lax-abilities-toolkit' ); ?></h3>
+
+			<p>
+				<?php
+				printf(
+					/* translators: %s: download link */
+					esc_html__( 'Download Cursor from %s if you have not already.', 'lax-abilities-toolkit' ),
+					'<a href="https://cursor.com" target="_blank" rel="noopener noreferrer">cursor.com</a>'
+				);
+				?>
+			</p>
+
+			<strong><?php esc_html_e( 'Where is the config file?', 'lax-abilities-toolkit' ); ?></strong>
+			<ul class="lax-paths">
+				<li><span class="os">Global</span>      <code>~/.cursor/mcp.json</code></li>
+				<li><span class="os">Per-project</span> <code>.cursor/mcp.json</code> <span style="color:#50575e"><?php esc_html_e( '(in your project root — takes precedence)', 'lax-abilities-toolkit' ); ?></span></li>
+			</ul>
+
+			<strong><?php esc_html_e( 'Steps:', 'lax-abilities-toolkit' ); ?></strong>
+			<ol class="lax-client-steps">
+				<li><?php esc_html_e( 'Open or create ~/.cursor/mcp.json (global) or .cursor/mcp.json (project).', 'lax-abilities-toolkit' ); ?></li>
+				<li>
 					<?php
 					printf(
-						/* translators: %s: path to config file */
-						esc_html__( 'Add to %s in your project root or home directory:', 'lax-abilities-toolkit' ),
-						'<code>.cursor/mcp.json</code>'
+						/* translators: %s: key name */
+						esc_html__( 'If the file already has an %s object, add the new server entry inside it. Otherwise paste the full snippet.', 'lax-abilities-toolkit' ),
+						'<code>"mcpServers"</code>'
 					);
 					?>
-				</p>
-				<button class="button lax-abilities-copy-btn"><?php esc_html_e( 'Copy', 'lax-abilities-toolkit' ); ?></button>
-				<pre><?php echo esc_html( $cursor_config ); ?></pre>
-			</div>
+				</li>
+				<li><?php esc_html_e( 'Replace YOUR_APP_PASSWORD with your Application Password.', 'lax-abilities-toolkit' ); ?></li>
+				<li>
+					<?php
+					esc_html_e( 'Reload Cursor: open the Command Palette (Ctrl/Cmd + Shift + P) and run "Developer: Reload Window".', 'lax-abilities-toolkit' );
+					?>
+				</li>
+				<li><?php esc_html_e( 'The WordPress MCP server will now appear under the MCP section in settings.', 'lax-abilities-toolkit' ); ?></li>
+			</ol>
 
-			<!-- VS Code -->
-			<div id="tab-vscode" class="tab-content">
-				<h3><?php esc_html_e( 'VS Code (GitHub Copilot / MCP extension)', 'lax-abilities-toolkit' ); ?></h3>
-				<p>
+			<div class="lax-copy-group">
+				<button class="button lax-copy-btn"><?php esc_html_e( 'Copy', 'lax-abilities-toolkit' ); ?></button>
+				<pre><?php echo esc_html( $snippet_cursor ); ?></pre>
+			</div>
+		</div>
+
+		<!-- ── VS Code ──────────────────────────────────────────────────────── -->
+		<div id="tab-vscode" class="tab-panel">
+			<h3><?php esc_html_e( 'VS Code', 'lax-abilities-toolkit' ); ?></h3>
+
+			<p>
+				<?php
+				printf(
+					/* translators: %s: download link */
+					esc_html__( 'Download VS Code from %s if you have not already. MCP support is built in from VS Code 1.99+.', 'lax-abilities-toolkit' ),
+					'<a href="https://code.visualstudio.com" target="_blank" rel="noopener noreferrer">code.visualstudio.com</a>'
+				);
+				?>
+			</p>
+
+			<strong><?php esc_html_e( 'Where is the config file?', 'lax-abilities-toolkit' ); ?></strong>
+			<ul class="lax-paths">
+				<li><span class="os">Workspace</span> <code>.vscode/mcp.json</code> <span style="color:#50575e"><?php esc_html_e( '(recommended — create in your project root)', 'lax-abilities-toolkit' ); ?></span></li>
+				<li><span class="os">Global</span>    <code><?php esc_html_e( 'VS Code Settings JSON → "mcp" key', 'lax-abilities-toolkit' ); ?></code></li>
+			</ul>
+
+			<strong><?php esc_html_e( 'Steps:', 'lax-abilities-toolkit' ); ?></strong>
+			<ol class="lax-client-steps">
+				<li>
 					<?php
 					printf(
-						/* translators: %s: path to settings file */
-						esc_html__( 'Add to your workspace %s:', 'lax-abilities-toolkit' ),
+						/* translators: %s: file path */
+						esc_html__( 'Create %s in the root of your project (or open it if it already exists).', 'lax-abilities-toolkit' ),
 						'<code>.vscode/mcp.json</code>'
 					);
 					?>
-				</p>
-				<button class="button lax-abilities-copy-btn"><?php esc_html_e( 'Copy', 'lax-abilities-toolkit' ); ?></button>
-				<pre><?php echo esc_html( $vscode_config ); ?></pre>
-			</div>
+				</li>
+				<li><?php esc_html_e( 'Paste the snippet below into the file.', 'lax-abilities-toolkit' ); ?></li>
+				<li><?php esc_html_e( 'Replace YOUR_APP_PASSWORD with your Application Password.', 'lax-abilities-toolkit' ); ?></li>
+				<li><?php esc_html_e( 'VS Code auto-discovers the server — no restart needed. A prompt may appear asking you to confirm.', 'lax-abilities-toolkit' ); ?></li>
+				<li>
+					<?php
+					esc_html_e( 'Open GitHub Copilot Chat (or any MCP-aware extension) and you will see the WordPress tools listed.', 'lax-abilities-toolkit' );
+					?>
+				</li>
+			</ol>
 
-			<!-- Generic -->
-			<div id="tab-generic" class="tab-content">
-				<h3><?php esc_html_e( 'Generic / Environment Variables', 'lax-abilities-toolkit' ); ?></h3>
-				<p><?php esc_html_e( 'Most MCP-compatible clients accept environment variables. Set these before launching your client:', 'lax-abilities-toolkit' ); ?></p>
-				<button class="button lax-abilities-copy-btn"><?php esc_html_e( 'Copy', 'lax-abilities-toolkit' ); ?></button>
-				<pre><?php echo esc_html( $generic_config ); ?></pre>
-				<p>
-					<strong><?php esc_html_e( 'Then run:', 'lax-abilities-toolkit' ); ?></strong><br>
-					<code>npx -y @automattic/mcp-wordpress-remote</code>
-				</p>
+			<div class="lax-copy-group">
+				<button class="button lax-copy-btn"><?php esc_html_e( 'Copy', 'lax-abilities-toolkit' ); ?></button>
+				<pre><?php echo esc_html( $snippet_vscode ); ?></pre>
 			</div>
 		</div>
 
-		<!-- Registered Abilities -->
+		<!-- ── Generic ──────────────────────────────────────────────────────── -->
+		<div id="tab-generic" class="tab-panel">
+			<h3><?php esc_html_e( 'Other / Generic', 'lax-abilities-toolkit' ); ?></h3>
+
+			<p>
+				<?php esc_html_e( 'Any MCP-compatible client that accepts environment variables can connect by running the bridge command below.', 'lax-abilities-toolkit' ); ?>
+			</p>
+
+			<strong><?php esc_html_e( 'Steps:', 'lax-abilities-toolkit' ); ?></strong>
+			<ol class="lax-client-steps">
+				<li><?php esc_html_e( 'Set the three environment variables shown below in your shell or client configuration.', 'lax-abilities-toolkit' ); ?></li>
+				<li><?php esc_html_e( 'Replace YOUR_APP_PASSWORD with your Application Password.', 'lax-abilities-toolkit' ); ?></li>
+				<li><?php esc_html_e( 'Point your client\'s MCP server command to:', 'lax-abilities-toolkit' ); ?><br><code>npx -y @automattic/mcp-wordpress-remote</code></li>
+				<li>
+					<?php
+					printf(
+						/* translators: %s: link to package */
+						esc_html__( 'See the %s package docs for client-specific integration examples.', 'lax-abilities-toolkit' ),
+						'<a href="https://www.npmjs.com/package/@automattic/mcp-wordpress-remote" target="_blank" rel="noopener noreferrer">@automattic/mcp-wordpress-remote</a>'
+					);
+					?>
+				</li>
+			</ol>
+
+			<div class="lax-copy-group">
+				<button class="button lax-copy-btn"><?php esc_html_e( 'Copy', 'lax-abilities-toolkit' ); ?></button>
+				<pre><?php echo esc_html( $snippet_generic ); ?></pre>
+			</div>
+		</div>
+
+		<?php /* ── Registered abilities table ──────────────────────────────── */ ?>
 		<?php if ( $abilities_api_active ) : ?>
 		<h2><?php esc_html_e( 'Registered Abilities', 'lax-abilities-toolkit' ); ?></h2>
 		<div class="lax-card">
-			<p><?php esc_html_e( 'The following abilities are currently registered under the lax-abilities category:', 'lax-abilities-toolkit' ); ?></p>
+			<p style="color:#50575e;margin-top:0">
+				<?php esc_html_e( 'These are the abilities currently active on your site. AI clients can invoke any of them.', 'lax-abilities-toolkit' ); ?>
+			</p>
 			<?php
-			$abilities = wp_get_abilities();
+			$abilities     = wp_get_abilities();
 			$lax_abilities = array_filter(
 				$abilities,
 				function ( $ability ) {
@@ -338,20 +592,25 @@ function lax_abilities_settings_page() {
 		</div>
 		<?php endif; ?>
 
-		<p style="color: #666; font-size: 12px; margin-top: 2em;">
+		<p style="color:#888;font-size:12px;margin-top:2.5em">
 			<?php
 			printf(
-				/* translators: 1: link to GitHub repo, 2: link to WordPress/mcp-adapter */
-				esc_html__( 'Lax Abilities Toolkit v%1$s — %2$s | MCP Adapter: %3$s', 'lax-abilities-toolkit' ),
+				/* translators: 1: plugin version, 2: GitHub link, 3: MCP Adapter link */
+				esc_html__( 'Lax Abilities Toolkit v%1$s &mdash; %2$s | MCP Adapter: %3$s', 'lax-abilities-toolkit' ),
 				esc_html( LAX_ABILITIES_VERSION ),
 				'<a href="https://github.com/laxmariappan/lax-abilities-toolkit" target="_blank" rel="noopener noreferrer">GitHub</a>',
 				'<a href="https://github.com/WordPress/mcp-adapter" target="_blank" rel="noopener noreferrer">WordPress/mcp-adapter</a>'
 			);
 			?>
 		</p>
+
 	</div>
 	<?php
 }
+
+// =============================================================================
+// Config snippet generator
+// =============================================================================
 
 /**
  * Returns a ready-to-paste MCP client configuration snippet.
@@ -359,12 +618,12 @@ function lax_abilities_settings_page() {
  * @since 1.1.0
  *
  * @param  string $mcp_endpoint The MCP server REST API URL.
- * @param  string $username     Current WP username.
+ * @param  string $username     Current WordPress username.
  * @param  string $client       One of: claude, cursor, vscode, generic.
  * @return string               Formatted configuration string.
  */
 function lax_abilities_get_client_config( $mcp_endpoint, $username, $client ) {
-	$server_key = 'wordpress-' . sanitize_title( parse_url( home_url(), PHP_URL_HOST ) );
+	$server_key = 'wordpress-' . sanitize_title( wp_parse_url( home_url(), PHP_URL_HOST ) );
 
 	$server_block = array(
 		'command' => 'npx',
@@ -381,15 +640,6 @@ function lax_abilities_get_client_config( $mcp_endpoint, $username, $client ) {
 
 	switch ( $client ) {
 		case 'claude':
-			return wp_json_encode(
-				array(
-					'mcpServers' => array(
-						$server_key => $server_block,
-					),
-				),
-				JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
-			);
-
 		case 'cursor':
 			return wp_json_encode(
 				array(
@@ -412,10 +662,15 @@ function lax_abilities_get_client_config( $mcp_endpoint, $username, $client ) {
 
 		case 'generic':
 		default:
-			return implode( "\n", array(
-				'export WP_API_URL="' . $mcp_endpoint . '"',
-				'export WP_API_USERNAME="' . $username . '"',
-				'export WP_API_PASSWORD="YOUR_APP_PASSWORD"',
-			) );
+			return implode(
+				"\n",
+				array(
+					'export WP_API_URL="' . $mcp_endpoint . '"',
+					'export WP_API_USERNAME="' . $username . '"',
+					'export WP_API_PASSWORD="YOUR_APP_PASSWORD"',
+					'',
+					'npx -y @automattic/mcp-wordpress-remote',
+				)
+			);
 	}
 }

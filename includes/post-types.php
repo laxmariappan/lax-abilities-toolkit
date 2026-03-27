@@ -431,8 +431,14 @@ function lax_abilities_build_create_schema( $config, $post_type ) {
 		),
 		'content' => array(
 			'type'        => 'string',
-			'description' => __( 'Content (HTML allowed).', 'lax-abilities-toolkit' ),
+			'description' => __( 'Content body. Accepts plain text, HTML, or existing Gutenberg block markup.', 'lax-abilities-toolkit' ),
 			'default'     => '',
+		),
+		'content_format' => array(
+			'type'        => 'string',
+			'enum'        => array( 'auto', 'blocks', 'classic' ),
+			'default'     => 'auto',
+			'description' => __( 'How to store the content. "auto" converts to Gutenberg blocks when the block editor is active (recommended). "blocks" always converts to blocks. "classic" stores content as-is.', 'lax-abilities-toolkit' ),
 		),
 		'status'  => array(
 			'type'        => 'string',
@@ -561,10 +567,13 @@ function lax_abilities_create_post_handler( $params, $post_type, $config ) {
 	 */
 	do_action( "lax_abilities_before_create_{$post_type}", $params, $post_type );
 
+	$raw_content = wp_kses_post( isset( $params['content'] ) ? $params['content'] : '' );
+	$raw_content = lax_abilities_maybe_convert_to_blocks( $raw_content, $params );
+
 	$post_data = array(
 		'post_type'    => $post_type,
 		'post_title'   => sanitize_text_field( $params['title'] ),
-		'post_content' => wp_kses_post( isset( $params['content'] ) ? $params['content'] : '' ),
+		'post_content' => $raw_content,
 		'post_status'  => isset( $params['status'] ) ? sanitize_key( $params['status'] ) : 'draft',
 		'post_author'  => isset( $params['author_id'] ) ? absint( $params['author_id'] ) : get_current_user_id(),
 		'post_excerpt' => isset( $params['excerpt'] ) ? sanitize_text_field( $params['excerpt'] ) : '',
@@ -676,7 +685,10 @@ function lax_abilities_update_post_handler( $params, $post_type, $config ) {
 		$post_data['post_title'] = sanitize_text_field( $params['title'] );
 	}
 	if ( isset( $params['content'] ) ) {
-		$post_data['post_content'] = wp_kses_post( $params['content'] );
+		$post_data['post_content'] = lax_abilities_maybe_convert_to_blocks(
+			wp_kses_post( $params['content'] ),
+			$params
+		);
 	}
 	if ( isset( $params['status'] ) ) {
 		$post_data['post_status'] = sanitize_key( $params['status'] );
@@ -965,6 +977,31 @@ function lax_abilities_delete_post_handler( $params, $post_type, $config ) {
 // =============================================================================
 // Internal utilities
 // =============================================================================
+
+/**
+ * Converts content to Gutenberg block markup based on the `content_format` param.
+ *
+ * Called by both the create and update handlers before saving `post_content`.
+ *
+ * @since 1.2.0
+ *
+ * @param  string $content Raw content (plain text, HTML, or already blocks).
+ * @param  array  $params  Input parameters (reads `content_format` key).
+ * @return string          Possibly-converted content.
+ */
+function lax_abilities_maybe_convert_to_blocks( $content, $params ) {
+	$format = isset( $params['content_format'] ) ? $params['content_format'] : 'auto';
+
+	if ( 'classic' === $format ) {
+		return $content;
+	}
+
+	if ( 'blocks' === $format || lax_abilities_is_block_editor_active() ) {
+		return lax_abilities_content_to_blocks( $content );
+	}
+
+	return $content;
+}
 
 /**
  * Syncs taxonomy terms for a post from the input params.
