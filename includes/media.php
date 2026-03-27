@@ -1,10 +1,15 @@
 <?php
 /**
- * Media library abilities: upload, list, get, delete.
+ * Media library abilities: list, get, delete.
  *
- * The upload ability sideloads a file from a remote URL into the WordPress
- * media library. This is the most practical approach for MCP/AI clients,
- * which typically reference files by URL.
+ * Provides read and delete access to the WordPress media library.
+ * AI clients can list media items, retrieve full attachment details,
+ * and delete attachments — all scoped to the authenticated user's
+ * capabilities via map_meta_cap.
+ *
+ * Note: Remote URL sideloading (upload-media) is intentionally omitted
+ * from this release to keep the plugin's scope focused. It will be
+ * revisited in a future version with appropriate security hardening.
  *
  * @package LaxAbilitiesToolkit
  * @since   1.1.0
@@ -23,62 +28,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function lax_abilities_register_media_abilities() {
 	$cat = LAX_ABILITIES_CATEGORY;
-
-	// ── upload ───────────────────────────────────────────────────────────────
-
-	wp_register_ability(
-		'lax-abilities/upload-media',
-		array(
-			'label'       => __( 'Upload Media', 'lax-abilities-toolkit' ),
-			'description' => __( 'Sideload a file from a remote URL into the WordPress media library. Supports images, PDFs, and any file type allowed by WordPress.', 'lax-abilities-toolkit' ),
-			'category'    => $cat,
-			'input_schema' => array(
-				'type'       => 'object',
-				'properties' => array(
-					'url' => array(
-						'type'        => 'string',
-						'format'      => 'uri',
-						'description' => __( 'Publicly accessible URL of the file to import.', 'lax-abilities-toolkit' ),
-					),
-					'title' => array(
-						'type'        => 'string',
-						'description' => __( 'Attachment title (defaults to filename).', 'lax-abilities-toolkit' ),
-						'default'     => '',
-					),
-					'alt_text' => array(
-						'type'        => 'string',
-						'description' => __( 'Image alt text (for image files).', 'lax-abilities-toolkit' ),
-						'default'     => '',
-					),
-					'caption' => array(
-						'type'        => 'string',
-						'description' => __( 'Attachment caption.', 'lax-abilities-toolkit' ),
-						'default'     => '',
-					),
-					'description' => array(
-						'type'        => 'string',
-						'description' => __( 'Attachment description.', 'lax-abilities-toolkit' ),
-						'default'     => '',
-					),
-					'post_id' => array(
-						'type'        => 'integer',
-						'description' => __( 'Attach to a specific post ID (0 for unattached).', 'lax-abilities-toolkit' ),
-						'default'     => 0,
-					),
-				),
-				'required' => array( 'url' ),
-			),
-			'execute_callback'    => 'lax_abilities_upload_media_handler',
-			'permission_callback' => function () {
-				return current_user_can( 'upload_files' );
-			},
-			'meta' => array(
-				'show_in_rest' => true,
-				'mcp'          => array( 'public' => true ),
-				'annotations'  => array( 'readonly' => false, 'destructive' => false ),
-			),
-		)
-	);
 
 	// ── list ─────────────────────────────────────────────────────────────────
 
@@ -187,73 +136,6 @@ function lax_abilities_register_media_abilities() {
 // =============================================================================
 // Execute handlers
 // =============================================================================
-
-/**
- * Sideloads a remote file into the WordPress media library.
- *
- * @since 1.1.0
- *
- * @param  array       $params Validated input parameters.
- * @return array|WP_Error      Response or WP_Error on failure.
- */
-function lax_abilities_upload_media_handler( $params ) {
-	require_once ABSPATH . 'wp-admin/includes/media.php';
-	require_once ABSPATH . 'wp-admin/includes/file.php';
-	require_once ABSPATH . 'wp-admin/includes/image.php';
-
-	$url     = esc_url_raw( $params['url'] );
-	$post_id = isset( $params['post_id'] ) ? absint( $params['post_id'] ) : 0;
-
-	if ( empty( $url ) ) {
-		return new WP_Error( 'lax_abilities_invalid_url', __( 'A valid URL is required.', 'lax-abilities-toolkit' ) );
-	}
-
-	// Download the remote file to a temporary location.
-	$tmp = download_url( $url );
-	if ( is_wp_error( $tmp ) ) {
-		return $tmp;
-	}
-
-	// Derive a filename from the URL path.
-	$filename = basename( wp_parse_url( $url, PHP_URL_PATH ) );
-	if ( empty( $filename ) || false === strpos( $filename, '.' ) ) {
-		$filename = 'upload-' . time();
-	}
-
-	$file_array = array(
-		'name'     => sanitize_file_name( $filename ),
-		'tmp_name' => $tmp,
-	);
-
-	$title = ! empty( $params['title'] ) ? sanitize_text_field( $params['title'] ) : '';
-
-	$attachment_id = media_handle_sideload( $file_array, $post_id, $title );
-
-	// Clean up temp file if sideload failed.
-	if ( is_wp_error( $attachment_id ) ) {
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		@unlink( $tmp );
-		return $attachment_id;
-	}
-
-	// Update optional metadata.
-	if ( ! empty( $params['alt_text'] ) ) {
-		update_post_meta( $attachment_id, '_wp_attachment_image_alt', sanitize_text_field( $params['alt_text'] ) );
-	}
-
-	$update_data = array( 'ID' => $attachment_id );
-	if ( ! empty( $params['caption'] ) ) {
-		$update_data['post_excerpt'] = sanitize_text_field( $params['caption'] );
-	}
-	if ( ! empty( $params['description'] ) ) {
-		$update_data['post_content'] = sanitize_textarea_field( $params['description'] );
-	}
-	if ( count( $update_data ) > 1 ) {
-		wp_update_post( $update_data );
-	}
-
-	return lax_abilities_build_media_response( $attachment_id );
-}
 
 /**
  * Lists media library items.

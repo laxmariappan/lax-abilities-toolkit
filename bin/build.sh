@@ -29,6 +29,13 @@ fi
 
 mkdir -p "${DIST_DIR}"
 
+# Build the React admin UI.
+echo "Building admin UI ..."
+cd "${PLUGIN_DIR}"
+npm ci --silent
+npm run build --silent
+cd "${PLUGIN_DIR}/.."
+
 ZIP_FILE="${DIST_DIR}/${PLUGIN_SLUG}-${VERSION}.zip"
 
 echo "Building ${ZIP_FILE} ..."
@@ -47,7 +54,10 @@ zip -r "${ZIP_FILE}" "${PLUGIN_SLUG}/" \
   --exclude "*/.editorconfig" \
   --exclude "*/.phpcs.xml" \
   --exclude "*/phpunit.xml*" \
-  --exclude "*/tests/*"
+  --exclude "*/tests/*" \
+  --exclude "*/src/*" \
+  --exclude "*/package.json" \
+  --exclude "*/package-lock.json"
 
 echo "Done: ${ZIP_FILE}"
 echo "Size: $(du -h "${ZIP_FILE}" | cut -f1)"

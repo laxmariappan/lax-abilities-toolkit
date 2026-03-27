@@ -224,13 +224,48 @@ function lax_abilities_dom_node_to_block( DOMNode $node, DOMDocument $doc ) {
 		case 'hr':
 			return "<!-- wp:separator /-->\n\n";
 
+		case 'img':
+			$src = $node->getAttribute( 'src' );
+			$alt = $node->getAttribute( 'alt' );
+			if ( empty( $src ) ) {
+				return '';
+			}
+			return "<!-- wp:image -->\n"
+				. "<figure class=\"wp-block-image\">"
+				. "<img src=\"" . esc_attr( $src ) . "\" alt=\"" . esc_attr( $alt ) . "\"/>"
+				. "</figure>\n<!-- /wp:image -->\n\n";
+
+		case 'figure':
+			// If it wraps an <img>, convert to wp:image; otherwise fall to wp:html.
+			$imgs = $node->getElementsByTagName( 'img' );
+			if ( $imgs->length > 0 ) {
+				$img        = $imgs->item( 0 );
+				$src        = $img->getAttribute( 'src' );
+				$alt        = $img->getAttribute( 'alt' );
+				$figcaption = '';
+				foreach ( $node->childNodes as $child ) {
+					if ( XML_ELEMENT_NODE === $child->nodeType && 'figcaption' === strtolower( $child->nodeName ) ) {
+						$figcaption = '<figcaption class="wp-element-caption">'
+							. lax_abilities_dom_inner_html( $child, $doc )
+							. '</figcaption>';
+						break;
+					}
+				}
+				return "<!-- wp:image -->\n"
+					. "<figure class=\"wp-block-image\">"
+					. "<img src=\"" . esc_attr( $src ) . "\" alt=\"" . esc_attr( $alt ) . "\"/>"
+					. $figcaption
+					. "</figure>\n<!-- /wp:image -->\n\n";
+			}
+			return "<!-- wp:html -->\n" . $doc->saveHTML( $node ) . "\n<!-- /wp:html -->\n\n";
+
 		case 'br':
 		case 'script':
 		case 'style':
 			return ''; // Discard script/style and bare br.
 
 		default:
-			// Tables, figures, iframes, and other elements go into an HTML block.
+			// Tables, iframes, and other unknown elements go into an HTML block.
 			return "<!-- wp:html -->\n" . $doc->saveHTML( $node ) . "\n<!-- /wp:html -->\n\n";
 	}
 }

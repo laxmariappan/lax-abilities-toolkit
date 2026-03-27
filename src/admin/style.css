@@ -1,0 +1,161 @@
+/* Lax Abilities Toolkit — Admin Page Styles */
+
+.lax-admin {
+	max-width: 960px;
+}
+
+.lax-tagline {
+	color: #50575e;
+	font-size: 14px;
+	margin: 0 0 16px;
+}
+
+.lax-card {
+	margin-bottom: 16px !important;
+}
+
+/* ── Status table ──────────────────────────────────────────────── */
+
+.lax-status-table td {
+	vertical-align: middle !important;
+}
+
+.lax-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	font-size: 11px;
+	font-weight: 700;
+	margin-right: 6px;
+	flex-shrink: 0;
+	vertical-align: middle;
+}
+
+.lax-badge--ok {
+	background: #00a32a;
+	color: #fff;
+}
+
+.lax-badge--fail {
+	background: #d63638;
+	color: #fff;
+}
+
+.lax-status-ok {
+	color: #00a32a;
+	font-weight: 600;
+}
+
+.lax-status-err {
+	color: #d63638;
+}
+
+.lax-endpoint {
+	word-break: break-all;
+}
+
+/* ── Notice ────────────────────────────────────────────────────── */
+
+.lax-notice.components-notice {
+	margin: 0 0 16px !important;
+	max-width: none;
+}
+
+/* ── App password ──────────────────────────────────────────────── */
+
+.lax-pw-input input[type="password"] {
+	min-width: 280px;
+}
+
+/* ── Client tabs ───────────────────────────────────────────────── */
+
+.lax-client-tab {
+	padding-top: 8px;
+}
+
+.lax-paths {
+	margin: 6px 0 16px;
+	padding: 0;
+	list-style: none;
+}
+
+.lax-paths li {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	margin-bottom: 6px;
+	font-size: 13px;
+}
+
+.lax-os {
+	min-width: 90px;
+	color: #50575e;
+	flex-shrink: 0;
+	padding-top: 2px;
+}
+
+.lax-step-list {
+	margin: 0 0 20px 22px;
+}
+
+.lax-step-list li {
+	margin-bottom: 6px;
+	line-height: 1.5;
+}
+
+/* ── Code blocks ───────────────────────────────────────────────── */
+
+.lax-code-block {
+	margin-bottom: 24px;
+}
+
+.lax-pre {
+	background: #1e1e1e;
+	color: #d4d4d4;
+	border-radius: 4px;
+	padding: 16px;
+	font-size: 12px;
+	line-height: 1.6;
+	overflow-x: auto;
+	white-space: pre;
+	margin: 0 0 6px;
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.lax-code-actions {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.lax-help-text {
+	color: #50575e;
+	font-size: 13px;
+	margin: 0 0 8px;
+}
+
+/* ── Abilities count badge ─────────────────────────────────────── */
+
+.lax-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 22px;
+	height: 22px;
+	padding: 0 6px;
+	background: #0073aa;
+	color: #fff;
+	border-radius: 11px;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+/* ── Footer ────────────────────────────────────────────────────── */
+
+.lax-footer {
+	color: #888;
+	font-size: 12px;
+	margin-top: 2em;
+}

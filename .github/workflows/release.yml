@@ -33,6 +33,17 @@ jobs:
           fi
           echo "Version check passed: ${PLUGIN_VERSION}"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install JS dependencies and build admin UI
+        run: |
+          npm ci
+          npm run build
+
       - name: Build distributable zip
         run: |
           mkdir -p dist
@@ -50,7 +61,10 @@ jobs:
             --exclude "*/.editorconfig" \
             --exclude "*/.phpcs.xml" \
             --exclude "*/phpunit.xml*" \
-            --exclude "*/tests/*"
+            --exclude "*/tests/*" \
+            --exclude "*/src/*" \
+            --exclude "*/package.json" \
+            --exclude "*/package-lock.json"
           echo "ZIP_NAME=${ZIP_NAME}" >> "$GITHUB_ENV"
           echo "Built: $(du -h lax-abilities-toolkit/dist/${ZIP_NAME} | cut -f1)"
 

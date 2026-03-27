@@ -1,0 +1,14 @@
+{
+  "name": "lax-abilities-toolkit",
+  "version": "1.3.0",
+  "description": "Connect WordPress to Claude, Cursor, VS Code, and any MCP-compatible AI via the WP Abilities API.",
+  "private": true,
+  "scripts": {
+    "build": "wp-scripts build src/admin/index.js --output-path=build",
+    "start": "wp-scripts start src/admin/index.js --output-path=build",
+    "lint:js": "wp-scripts lint-js src/"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^30.0.0"
+  }
+}

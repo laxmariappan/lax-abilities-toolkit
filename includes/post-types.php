@@ -455,6 +455,10 @@ function lax_abilities_build_create_schema( $config, $post_type ) {
 			'type'        => 'integer',
 			'description' => __( 'Author user ID. Defaults to the currently authenticated user.', 'lax-abilities-toolkit' ),
 		),
+		'featured_image_id' => array(
+			'type'        => 'integer',
+			'description' => __( 'Attachment ID to set as the featured image (post thumbnail). Use list-media to find attachment IDs. Pass 0 to remove the existing featured image.', 'lax-abilities-toolkit' ),
+		),
 	);
 
 	if ( ! empty( $config['supports_schedule'] ) ) {
@@ -618,6 +622,10 @@ function lax_abilities_create_post_handler( $params, $post_type, $config ) {
 	lax_abilities_sync_taxonomies( $post_id, $params, $config['taxonomies'] );
 	lax_abilities_sync_template( $post_id, $params, $config );
 
+	if ( ! empty( $params['featured_image_id'] ) ) {
+		set_post_thumbnail( $post_id, absint( $params['featured_image_id'] ) );
+	}
+
 	/**
 	 * Fires after a new post has been created via an Ability.
 	 *
@@ -725,6 +733,15 @@ function lax_abilities_update_post_handler( $params, $post_type, $config ) {
 
 	lax_abilities_sync_taxonomies( $post_id, $params, $config['taxonomies'] );
 	lax_abilities_sync_template( $post_id, $params, $config );
+
+	if ( isset( $params['featured_image_id'] ) ) {
+		$fid = absint( $params['featured_image_id'] );
+		if ( $fid > 0 ) {
+			set_post_thumbnail( $post_id, $fid );
+		} else {
+			delete_post_thumbnail( $post_id );
+		}
+	}
 
 	/**
 	 * Fires after an existing post has been updated via an Ability.

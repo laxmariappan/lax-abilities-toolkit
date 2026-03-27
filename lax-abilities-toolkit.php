@@ -3,7 +3,7 @@
  * Plugin Name: Lax Abilities Toolkit
  * Plugin URI:  https://github.com/laxmariappan/lax-abilities-toolkit
  * Description: Exposes WordPress content management as Abilities via the WP Abilities API. Supports any post type or taxonomy via filter hooks. Works with MCP Adapter to connect Claude, Cursor, VS Code, and any MCP-compatible AI client to your WordPress site.
- * Version:     1.2.0
+ * Version:     1.3.0
  * Author:      Lax Mariappan
  * Author URI:  https://laxmariappan.com
  * Requires at least: 6.9
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 1.0.0
  * @var string
  */
-define( 'LAX_ABILITIES_VERSION', '1.2.0' );
+define( 'LAX_ABILITIES_VERSION', '1.3.0' );
 
 /**
  * Absolute path to the plugin directory (with trailing slash).
