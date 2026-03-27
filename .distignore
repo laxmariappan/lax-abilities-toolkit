@@ -1,0 +1,11 @@
+.git
+.github
+.distignore
+.editorconfig
+.phpcs.xml
+bin
+CHANGELOG.md
+phpunit.xml
+phpunit.xml.dist
+tests
+node_modules

@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build plugin zip and create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building version: ${VERSION}"
+
+      - name: Verify plugin version matches tag
+        run: |
+          PLUGIN_VERSION=$(grep -m1 "^.* Version:" lax-abilities-toolkit.php | awk '{ print $NF }')
+          if [ "${PLUGIN_VERSION}" != "${{ steps.version.outputs.VERSION }}" ]; then
+            echo "Version mismatch: plugin says ${PLUGIN_VERSION}, tag says ${{ steps.version.outputs.VERSION }}"
+            exit 1
+          fi
+          echo "Version check passed: ${PLUGIN_VERSION}"
+
+      - name: Build distributable zip
+        run: |
+          mkdir -p dist
+          ZIP_NAME="lax-abilities-toolkit-${{ steps.version.outputs.VERSION }}.zip"
+          cd ..
+          zip -r "lax-abilities-toolkit/dist/${ZIP_NAME}" lax-abilities-toolkit/ \
+            --exclude "*/.git/*" \
+            --exclude "*/.github/*" \
+            --exclude "*/bin/*" \
+            --exclude "*/.distignore" \
+            --exclude "*/node_modules/*" \
+            --exclude "*/.DS_Store" \
+            --exclude "*/*.sh" \
+            --exclude "*/CHANGELOG.md" \
+            --exclude "*/.editorconfig" \
+            --exclude "*/.phpcs.xml" \
+            --exclude "*/phpunit.xml*" \
+            --exclude "*/tests/*"
+          echo "ZIP_NAME=${ZIP_NAME}" >> "$GITHUB_ENV"
+          echo "Built: $(du -h lax-abilities-toolkit/dist/${ZIP_NAME} | cut -f1)"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ steps.version.outputs.VERSION }}"
+          files: dist/${{ env.ZIP_NAME }}
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            1. Download `${{ env.ZIP_NAME }}` below.
+            2. In your WordPress admin go to **Plugins → Add New Plugin → Upload Plugin**.
+            3. Upload the zip and activate.
+            4. Go to **Settings → Lax Abilities** for MCP connection instructions.
+
+            ## Requirements
+            - WordPress 6.9+ (Abilities API)
+            - [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin for AI client connectivity

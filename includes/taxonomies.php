@@ -1,26 +1,30 @@
 <?php
 /**
- * Dynamic taxonomy abilities: create and list.
+ * Dynamic taxonomy abilities: create, list, delete.
  *
- * Register additional taxonomies via the lax_abilities_registered_taxonomies filter:
+ * Abilities are generated for every taxonomy registered via the
+ * `lax_abilities_registered_taxonomies` filter.
  *
- *     add_filter( 'lax_abilities_registered_taxonomies', function( $taxonomies ) {
- *         $taxonomies['product_cat'] = array(
- *             'label'        => 'Product Category',
- *             'plural'       => 'Product Categories',
- *             'hierarchical' => true,
- *             'ability_slug' => 'product-category',  // ability name: lax-abilities/create-product-category
- *         );
- *         $taxonomies['product_tag'] = array(
- *             'label'        => 'Product Tag',
- *             'plural'       => 'Product Tags',
- *             'hierarchical' => false,
- *             'ability_slug' => 'product-tag',
- *         );
- *         return $taxonomies;
- *     } );
+ * ## Adding a custom taxonomy
+ *
+ *     add_filter(
+ *         'lax_abilities_registered_taxonomies',
+ *         function( array $taxonomies ): array {
+ *             $taxonomies['product_cat'] = array(
+ *                 'label'        => 'Product Category',
+ *                 'plural'       => 'Product Categories',
+ *                 'hierarchical' => true,
+ *                 'ability_slug' => 'product-category',
+ *             );
+ *             return $taxonomies;
+ *         }
+ *     );
+ *     // Registers: lax-abilities/create-product-category
+ *     //            lax-abilities/list-product-categories
+ *     //            lax-abilities/delete-product-category
  *
  * @package LaxAbilitiesToolkit
+ * @since   1.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -32,9 +36,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 // =============================================================================
 
 /**
- * Returns the array of taxonomies to register abilities for.
+ * Returns the taxonomy configurations to register abilities for.
  *
- * @return array<string, array>
+ * @since 1.0.0
+ *
+ * @return array<string, array> Keyed by WP taxonomy slug.
  */
 function lax_abilities_get_taxonomies() {
 	$defaults = array(
@@ -53,24 +59,32 @@ function lax_abilities_get_taxonomies() {
 	);
 
 	/**
-	 * Filters the taxonomies that get create/list abilities registered.
+	 * Filters the taxonomies that get create / list / delete Abilities registered.
 	 *
-	 * Each entry is keyed by the WP taxonomy slug. Supported config keys:
+	 * @since 1.0.0
 	 *
-	 *   label        string  Singular human-readable label.
-	 *   plural       string  Plural human-readable label.
-	 *   hierarchical bool    Whether the taxonomy supports parent terms.
-	 *   ability_slug string  Override for the ability name slug (default: sanitised taxonomy key).
-	 *                        Resulting ability names: lax-abilities/create-{ability_slug}
-	 *                                                 lax-abilities/list-{ability_slug}s
+	 * @param array $taxonomies {
+	 *     Taxonomy configuration map, keyed by WP taxonomy slug.
 	 *
-	 * @param array $taxonomies Registered taxonomy configurations.
+	 *     @type string $label        Singular human-readable label.
+	 *     @type string $plural       Plural human-readable label.
+	 *     @type bool   $hierarchical Whether the taxonomy supports parent terms.
+	 *     @type string $ability_slug Override for the ability slug segment.
+	 *                                Defaults to the sanitised taxonomy key.
+	 *                                Resulting names: lax-abilities/create-{ability_slug}
+	 *                                                 lax-abilities/list-{plural_slug}
+	 *                                                 lax-abilities/delete-{ability_slug}
+	 * }
 	 */
 	return apply_filters( 'lax_abilities_registered_taxonomies', $defaults );
 }
 
 /**
- * Register create/list abilities for all configured taxonomies.
+ * Registers abilities for all configured taxonomies.
+ *
+ * @since 1.0.0
+ *
+ * @return void
  */
 function lax_abilities_register_taxonomy_abilities_all() {
 	$defaults = array(
@@ -102,21 +116,38 @@ function lax_abilities_register_taxonomy_abilities_all() {
 // =============================================================================
 
 /**
- * Register create and list abilities for a single taxonomy.
+ * Registers create / list / delete abilities for one taxonomy.
+ *
+ * @since 1.0.0
  *
  * @param string $taxonomy WP taxonomy slug.
  * @param array  $config   Merged taxonomy configuration.
+ * @return void
  */
 function lax_abilities_register_taxonomy_abilities( $taxonomy, $config ) {
-	$slug  = $config['ability_slug'];
-	$label = $config['label'];
-	$cat   = LAX_ABILITIES_CATEGORY;
+	$slug        = $config['ability_slug'];
+	$plural_slug = lax_abilities_to_slug( $config['plural'] );
+	$label       = $config['label'];
+	$cat         = LAX_ABILITIES_CATEGORY;
 
 	$create_props = array(
-		'name'        => array( 'type' => 'string', 'description' => sprintf( __( '%s name.', 'lax-abilities-toolkit' ), $label ) ),
-		'slug'        => array( 'type' => 'string', 'description' => __( 'Slug (auto-generated from name if omitted).', 'lax-abilities-toolkit' ), 'default' => '' ),
-		'description' => array( 'type' => 'string', 'description' => __( 'Description.', 'lax-abilities-toolkit' ), 'default' => '' ),
+		'name' => array(
+			'type'        => 'string',
+			/* translators: %s: taxonomy singular label */
+			'description' => sprintf( __( '%s name.', 'lax-abilities-toolkit' ), $label ),
+		),
+		'slug' => array(
+			'type'        => 'string',
+			'description' => __( 'URL slug (auto-generated from name if omitted).', 'lax-abilities-toolkit' ),
+			'default'     => '',
+		),
+		'description' => array(
+			'type'        => 'string',
+			'description' => __( 'Term description.', 'lax-abilities-toolkit' ),
+			'default'     => '',
+		),
 	);
+
 	if ( ! empty( $config['hierarchical'] ) ) {
 		$create_props['parent_id'] = array(
 			'type'        => 'integer',
@@ -126,66 +157,137 @@ function lax_abilities_register_taxonomy_abilities( $taxonomy, $config ) {
 	}
 
 	// ── create ───────────────────────────────────────────────────────────────
-	wp_register_ability( "lax-abilities/create-{$slug}", array(
-		'label'               => sprintf( __( 'Create %s', 'lax-abilities-toolkit' ), $label ),
-		'description'         => sprintf( __( 'Create a new %s term. Returns existing term data if the name already exists.', 'lax-abilities-toolkit' ), strtolower( $label ) ),
-		'category'            => $cat,
-		'input_schema'        => array(
-			'type'       => 'object',
-			'properties' => $create_props,
-			'required'   => array( 'name' ),
-		),
-		'execute_callback'    => function ( $params ) use ( $taxonomy, $config ) {
-			return lax_abilities_create_term_handler( $params, $taxonomy, $config );
-		},
-		'permission_callback' => function () {
-			return current_user_can( 'manage_categories' );
-		},
-		'meta' => array(
-			'show_in_rest' => true,
-			'mcp'          => array( 'public' => true ),
-			'annotations'  => array( 'readonly' => false, 'destructive' => false ),
-		),
-	) );
+
+	wp_register_ability(
+		"lax-abilities/create-{$slug}",
+		array(
+			'label'       => sprintf(
+				/* translators: %s: taxonomy singular label */
+				__( 'Create %s', 'lax-abilities-toolkit' ),
+				$label
+			),
+			'description' => sprintf(
+				/* translators: %s: lowercase taxonomy singular label */
+				__( 'Create a new %s term. Returns existing term data when the name already exists.', 'lax-abilities-toolkit' ),
+				strtolower( $label )
+			),
+			'category'     => $cat,
+			'input_schema' => array(
+				'type'       => 'object',
+				'properties' => $create_props,
+				'required'   => array( 'name' ),
+			),
+			'execute_callback'    => function ( $params ) use ( $taxonomy, $config ) {
+				return lax_abilities_create_term_handler( $params, $taxonomy, $config );
+			},
+			'permission_callback' => function () {
+				return current_user_can( 'manage_categories' );
+			},
+			'meta' => array(
+				'show_in_rest' => true,
+				'mcp'          => array( 'public' => true ),
+				'annotations'  => array( 'readonly' => false, 'destructive' => false ),
+			),
+		)
+	);
 
 	// ── list ─────────────────────────────────────────────────────────────────
-	wp_register_ability( "lax-abilities/list-{$slug}s", array(
-		'label'               => sprintf( __( 'List %s', 'lax-abilities-toolkit' ), $config['plural'] ),
-		'description'         => sprintf( __( 'List all %s with IDs, slugs, and post counts.', 'lax-abilities-toolkit' ), strtolower( $config['plural'] ) ),
-		'category'            => $cat,
-		'input_schema'        => array(
-			'type'       => 'object',
-			'properties' => array(
-				'hide_empty' => array(
-					'type'        => 'boolean',
-					'default'     => false,
-					'description' => __( 'Exclude terms with no assigned posts.', 'lax-abilities-toolkit' ),
+
+	wp_register_ability(
+		"lax-abilities/list-{$plural_slug}",
+		array(
+			'label'       => sprintf(
+				/* translators: %s: taxonomy plural label */
+				__( 'List %s', 'lax-abilities-toolkit' ),
+				$config['plural']
+			),
+			'description' => sprintf(
+				/* translators: %s: lowercase taxonomy plural label */
+				__( 'List all %s with IDs, slugs, descriptions, and post counts.', 'lax-abilities-toolkit' ),
+				strtolower( $config['plural'] )
+			),
+			'category'     => $cat,
+			'input_schema' => array(
+				'type'       => 'object',
+				'properties' => array(
+					'hide_empty' => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Exclude terms that have no assigned posts.', 'lax-abilities-toolkit' ),
+					),
 				),
 			),
-		),
-		'execute_callback'    => function ( $params ) use ( $taxonomy, $config ) {
-			return lax_abilities_list_terms_handler( $params, $taxonomy, $config );
-		},
-		'permission_callback' => '__return_true',
-		'meta' => array(
-			'show_in_rest' => true,
-			'mcp'          => array( 'public' => true ),
-			'annotations'  => array( 'readonly' => true, 'destructive' => false ),
-		),
-	) );
+			'execute_callback'    => function ( $params ) use ( $taxonomy, $config ) {
+				return lax_abilities_list_terms_handler( $params, $taxonomy, $config );
+			},
+			'permission_callback' => '__return_true',
+			'meta' => array(
+				'show_in_rest' => true,
+				'mcp'          => array( 'public' => true ),
+				'annotations'  => array( 'readonly' => true, 'destructive' => false ),
+			),
+		)
+	);
+
+	// ── delete ───────────────────────────────────────────────────────────────
+
+	wp_register_ability(
+		"lax-abilities/delete-{$slug}",
+		array(
+			'label'       => sprintf(
+				/* translators: %s: taxonomy singular label */
+				__( 'Delete %s', 'lax-abilities-toolkit' ),
+				$label
+			),
+			'description' => sprintf(
+				/* translators: %s: lowercase taxonomy singular label */
+				__( 'Permanently delete a %s term by ID. Posts assigned to this term will be reassigned to the parent term or left unassigned.', 'lax-abilities-toolkit' ),
+				strtolower( $label )
+			),
+			'category'     => $cat,
+			'input_schema' => array(
+				'type'       => 'object',
+				'properties' => array(
+					'id' => array(
+						'type'        => 'integer',
+						/* translators: %s: taxonomy singular label */
+						'description' => sprintf( __( '%s term ID to delete.', 'lax-abilities-toolkit' ), $label ),
+					),
+				),
+				'required' => array( 'id' ),
+			),
+			'execute_callback'    => function ( $params ) use ( $taxonomy, $config ) {
+				return lax_abilities_delete_term_handler( $params, $taxonomy, $config );
+			},
+			'permission_callback' => function () {
+				return current_user_can( 'manage_categories' );
+			},
+			'meta' => array(
+				'show_in_rest' => true,
+				'mcp'          => array( 'public' => true ),
+				'annotations'  => array( 'readonly' => false, 'destructive' => true ),
+			),
+		)
+	);
 }
 
 // =============================================================================
-// Handlers
+// Execute handlers
 // =============================================================================
 
 /**
- * Execute handler: create a taxonomy term.
+ * Creates a taxonomy term.
  *
- * @param  array  $params
- * @param  string $taxonomy
- * @param  array  $config
- * @return array|WP_Error
+ * When the term name already exists, returns the existing term data with
+ * `already_exists: true` rather than returning an error. This makes the
+ * ability idempotent for create-or-get workflows.
+ *
+ * @since 1.0.0
+ *
+ * @param  array  $params   Validated input parameters.
+ * @param  string $taxonomy WP taxonomy slug.
+ * @param  array  $config   Taxonomy configuration.
+ * @return array|WP_Error   Response array or WP_Error.
  */
 function lax_abilities_create_term_handler( $params, $taxonomy, $config ) {
 	$args = array(
@@ -203,74 +305,154 @@ function lax_abilities_create_term_handler( $params, $taxonomy, $config ) {
 	$result = wp_insert_term( sanitize_text_field( $params['name'] ), $taxonomy, $args );
 
 	if ( is_wp_error( $result ) ) {
-		// Surface existing term data instead of failing hard.
+		// Gracefully surface existing term data instead of hard-failing.
 		if ( 'term_exists' === $result->get_error_code() ) {
 			$existing_id   = (int) $result->get_error_data();
 			$existing_term = get_term( $existing_id, $taxonomy );
+
+			if ( is_wp_error( $existing_term ) || ! $existing_term ) {
+				return $result;
+			}
+
 			$response = array(
 				'success'        => false,
 				'already_exists' => true,
 				'id'             => $existing_id,
 				'name'           => $existing_term->name,
 				'slug'           => $existing_term->slug,
-				'message'        => sprintf( __( '"%s" already exists — returning existing term.', 'lax-abilities-toolkit' ), $existing_term->name ),
+				'message'        => sprintf(
+					/* translators: %s: term name */
+					__( '"%s" already exists — returning existing term.', 'lax-abilities-toolkit' ),
+					$existing_term->name
+				),
 			);
+
 			if ( ! empty( $config['hierarchical'] ) ) {
 				$response['parent_id'] = (int) $existing_term->parent;
 			}
+
 			return $response;
 		}
+
 		return $result;
 	}
 
-	$term     = get_term( $result['term_id'], $taxonomy );
+	$term = get_term( $result['term_id'], $taxonomy );
+
+	if ( is_wp_error( $term ) || ! $term ) {
+		return new WP_Error( 'lax_abilities_term_fetch_failed', __( 'Term was created but could not be retrieved.', 'lax-abilities-toolkit' ) );
+	}
+
 	$response = array(
 		'success'     => true,
 		'id'          => (int) $result['term_id'],
 		'name'        => $term->name,
 		'slug'        => $term->slug,
 		'description' => $term->description,
-		'message'     => sprintf( __( '"%s" created.', 'lax-abilities-toolkit' ), $term->name ),
+		'message'     => sprintf(
+			/* translators: %s: term name */
+			__( '"%s" created.', 'lax-abilities-toolkit' ),
+			$term->name
+		),
 	);
+
 	if ( ! empty( $config['hierarchical'] ) ) {
 		$response['parent_id'] = (int) $term->parent;
 	}
+
 	return $response;
 }
 
 /**
- * Execute handler: list all terms for a taxonomy.
+ * Lists all terms for a taxonomy.
  *
- * @param  array  $params
- * @param  string $taxonomy
- * @param  array  $config
- * @return array|WP_Error
+ * @since 1.0.0
+ *
+ * @param  array  $params   Validated input parameters.
+ * @param  string $taxonomy WP taxonomy slug.
+ * @param  array  $config   Taxonomy configuration.
+ * @return array|WP_Error   Response array or WP_Error.
  */
 function lax_abilities_list_terms_handler( $params, $taxonomy, $config ) {
-	$terms = get_terms( array(
-		'taxonomy'   => $taxonomy,
-		'hide_empty' => isset( $params['hide_empty'] ) ? (bool) $params['hide_empty'] : false,
-		'orderby'    => 'name',
-		'order'      => 'ASC',
-	) );
+	$terms = get_terms(
+		array(
+			'taxonomy'   => $taxonomy,
+			'hide_empty' => isset( $params['hide_empty'] ) ? (bool) $params['hide_empty'] : false,
+			'orderby'    => 'name',
+			'order'      => 'ASC',
+		)
+	);
 
 	if ( is_wp_error( $terms ) ) {
 		return $terms;
 	}
 
-	$items = array_map( function ( WP_Term $term ) use ( $config ) {
-		$item = array(
-			'id'          => $term->term_id,
-			'name'        => $term->name,
-			'slug'        => $term->slug,
-			'description' => $term->description,
-			'post_count'  => $term->count,
-		);
-		if ( ! empty( $config['hierarchical'] ) ) {
-			$item['parent_id'] = (int) $term->parent;
-		}
-		return $item;
-	}, $terms );
+	$items = array_map(
+		function ( WP_Term $term ) use ( $config ) {
+			$item = array(
+				'id'          => $term->term_id,
+				'name'        => $term->name,
+				'slug'        => $term->slug,
+				'description' => $term->description,
+				'post_count'  => $term->count,
+			);
+			if ( ! empty( $config['hierarchical'] ) ) {
+				$item['parent_id'] = (int) $term->parent;
+			}
+			return $item;
+		},
+		$terms
+	);
 
-	return array( 'success' => true, 'count' => count( $items ), 'items' => $items );
+	return array(
+		'success' => true,
+		'count'   => count( $items ),
+		'items'   => $items,
+	);
+}
+
+/**
+ * Permanently deletes a taxonomy term.
+ *
+ * @since 1.1.0
+ *
+ * @param  array  $params   Validated input parameters.
+ * @param  string $taxonomy WP taxonomy slug.
+ * @param  array  $config   Taxonomy configuration.
+ * @return array|WP_Error   Response array or WP_Error.
+ */
+function lax_abilities_delete_term_handler( $params, $taxonomy, $config ) {
+	$term_id = absint( $params['id'] );
+	$term    = get_term( $term_id, $taxonomy );
+
+	if ( is_wp_error( $term ) || ! $term ) {
+		return new WP_Error(
+			'lax_abilities_not_found',
+			sprintf( __( '%s not found.', 'lax-abilities-toolkit' ), $config['label'] )
+		);
+	}
+
+	$name   = $term->name;
+	$result = wp_delete_term( $term_id, $taxonomy );
+
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+
+	if ( ! $result ) {
+		return new WP_Error(
+			'lax_abilities_delete_failed',
+			__( 'Could not delete the term.', 'lax-abilities-toolkit' )
+		);
+	}
+
+	return array(
+		'success' => true,
+		'id'      => $term_id,
+		'message' => sprintf(
+			/* translators: %s: term name */
+			__( '"%s" deleted.', 'lax-abilities-toolkit' ),
+			$name
+		),
+	);
 }
