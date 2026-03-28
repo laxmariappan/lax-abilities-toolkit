@@ -445,6 +445,7 @@ function lax_abilities_delete_term_handler( $params, $taxonomy, $config ) {
 	if ( is_wp_error( $term ) || ! $term ) {
 		return new WP_Error(
 			'lax_abilities_not_found',
+			/* translators: %s: Taxonomy label, e.g. "Category" or "Tag". */
 			sprintf( __( '%s not found.', 'lax-abilities-toolkit' ), $config['label'] )
 		);
 	}

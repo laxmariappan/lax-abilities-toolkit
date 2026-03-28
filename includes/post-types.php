@@ -1,4 +1,8 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Dynamic post-type abilities: create, update, list, get, delete.
  *
@@ -53,10 +57,6 @@
  * @package LaxAbilitiesToolkit
  * @since   1.0.0
  */
-
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
 
 // =============================================================================
 // Registry
@@ -889,6 +889,7 @@ function lax_abilities_get_post_handler( $params, $post_type, $config ) {
 	if ( ! $post || $post->post_type !== $post_type ) {
 		return new WP_Error(
 			'lax_abilities_not_found',
+			/* translators: %s: Post type label, e.g. "Post" or "Page". */
 			sprintf( __( '%s not found.', 'lax-abilities-toolkit' ), $config['label'] )
 		);
 	}
@@ -967,6 +968,7 @@ function lax_abilities_delete_post_handler( $params, $post_type, $config ) {
 	if ( ! $post || $post->post_type !== $post_type ) {
 		return new WP_Error(
 			'lax_abilities_not_found',
+			/* translators: %s: Post type label, e.g. "Post" or "Page". */
 			sprintf( __( '%s not found.', 'lax-abilities-toolkit' ), $config['label'] )
 		);
 	}
@@ -1020,13 +1022,16 @@ function lax_abilities_delete_post_handler( $params, $post_type, $config ) {
 	 */
 	do_action( "lax_abilities_after_delete_{$post_type}", $post_id, $force_delete, $post_type );
 
+	/* translators: %s: Post or page title. */
+	$deleted_msg = sprintf( __( '"%s" permanently deleted.', 'lax-abilities-toolkit' ), $title );
+	/* translators: %s: Post or page title. */
+	$trashed_msg = sprintf( __( '"%s" moved to trash.', 'lax-abilities-toolkit' ), $title );
+
 	return array(
 		'success'      => true,
 		'id'           => $post_id,
 		'force_delete' => $force_delete,
-		'message'      => $force_delete
-			? sprintf( __( '"%s" permanently deleted.', 'lax-abilities-toolkit' ), $title )
-			: sprintf( __( '"%s" moved to trash.', 'lax-abilities-toolkit' ), $title ),
+		'message'      => $force_delete ? $deleted_msg : $trashed_msg,
 	);
 }
 

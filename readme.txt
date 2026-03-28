@@ -8,7 +8,7 @@ Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Connect your WordPress site to AI assistants via MCP. Manage posts, pages, categories, tags, and media through natural conversation.
+Let AI assistants read and manage your WordPress content through conversation. Supports posts, pages, categories, tags, media, and more.
 
 == Description ==
 
