@@ -45,6 +45,7 @@ cd "${PLUGIN_DIR}/.."
 zip -r "${ZIP_FILE}" "${PLUGIN_SLUG}/" \
   --exclude "*/.git/*" \
   --exclude "*/.github/*" \
+  --exclude "*/.wordpress-org/*" \
   --exclude "*/bin/*" \
   --exclude "*/.distignore" \
   --exclude "*/node_modules/*" \

@@ -52,6 +52,7 @@ jobs:
           zip -r "lax-abilities-toolkit/dist/${ZIP_NAME}" lax-abilities-toolkit/ \
             --exclude "*/.git/*" \
             --exclude "*/.github/*" \
+            --exclude "*/.wordpress-org/*" \
             --exclude "*/bin/*" \
             --exclude "*/.distignore" \
             --exclude "*/node_modules/*" \

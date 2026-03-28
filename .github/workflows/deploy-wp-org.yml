@@ -1,0 +1,53 @@
+name: Deploy to WordPress.org
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy plugin to WordPress.org SVN
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Deploying version: ${VERSION}"
+
+      - name: Verify plugin version matches tag
+        run: |
+          PLUGIN_VERSION=$(grep -m1 "^.* Version:" lax-abilities-toolkit.php | awk '{ print $NF }')
+          if [ "${PLUGIN_VERSION}" != "${{ steps.version.outputs.VERSION }}" ]; then
+            echo "Version mismatch: plugin says ${PLUGIN_VERSION}, tag says ${{ steps.version.outputs.VERSION }}"
+            exit 1
+          fi
+          echo "Version check passed: ${PLUGIN_VERSION}"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install JS dependencies and build admin UI
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to WordPress.org SVN
+        uses: 10up/action-wordpress-plugin-deploy@v2
+        env:
+          SVN_PASSWORD: ${{ secrets.WP_ORG_SVN_PASSWORD }}
+          SVN_USERNAME: ${{ secrets.WP_ORG_SVN_USERNAME }}
+          SLUG: lax-abilities-toolkit
+          ASSETS_DIR: .wordpress-org
